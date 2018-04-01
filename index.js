@@ -4,15 +4,16 @@ let scrape = async () => {
   // Actual Scraping goes Here...
   const browser = await puppeteer.launch({headless: false});
   const page = await browser.newPage();
-  await page.goto('https://www.upwork.com/o/profiles/browse/?loc=indonesia');
-  
+  await page.goto('https://www.upwork.com/o/profiles/browse/?loc=indonesia', { timeout: 0 });
   const result = await page.evaluate(()=>{
   	let data = [];
   	let elements = document.querySelectorAll('a.freelancer-tile-name')
-  	
+  	console.log('elements', elements)
   	for(var element of elements){
-  		data.push(element);
-  	}
+  		data.push(element.href);
+    }
+    
+    console.log('data', data);
   	return data;
   });
 
@@ -22,5 +23,5 @@ let scrape = async () => {
 };
 
 scrape().then((value) => {
-    console.log(value); // Success!
+    console.log('value', value); // Success!
 });
