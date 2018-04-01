@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "puppeteer": "^1.2.0"    
+    "puppeteer": "^1.2.0",
+    "random-useragent": "^0.3.1"
   },
   "devDependencies": {},
   "scripts": {
