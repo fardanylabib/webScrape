@@ -1,0 +1,139 @@
+const puppeteer = require("puppeteer");
+const userAgent = require("random-useragent");
+const fs = require("fs");
+
+const URL_SOFTWARE_DEV = "https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=";
+
+const scrape = async () => {
+	const filter = (ua) => ua !== "mobile"
+	var browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
+	var page = await browser.newPage();
+	var agent = userAgent.getRandom(filter);
+	console.log(agent);
+	page.setExtraHTTPHeaders({ "user-agent": agent});
+
+	//make file directory
+	fs.mkdir(".\\upwork_links",function(e){
+	    if(!e || (e && e.code === 'EEXIST')){
+	        console.log("directory upwork_links created");
+	    } else {
+	        //debug
+	        console.log(e);
+	    }
+	});
+
+  	// Actual Scraping goes Here...
+  	let globalData = [];
+  	for(let i = 1 ; i<=500 ; i++){
+  		var links= [];
+  		links = await getAllEmployeeLinks(page, URL_SOFTWARE_DEV+i);
+  		console.log("getting links process was done");
+  		console.log(links);
+  		if(links[0]){
+  			var stream = fs.createWriteStream(".\\upwork_links\\page_"+i+".txt");
+  			console.log("writing links into file...");
+			for(const link of links){
+				stream.write(link + '\n');
+			}
+			stream.end();
+			console.log("page "+i+" was recorded!");
+  		}else{
+  			console.log("reset browser...");
+  			browser.close();
+			browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
+			page = await browser.newPage();
+			agent = userAgent.getRandom(filter);
+			console.log(agent);
+			page.setExtraHTTPHeaders({ "user-agent": agent});
+  			i--;
+  		}
+		  // await page.goto('https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page='+i, { timeout: 0 , waitUntil : 'domcontentloaded'});
+		  // console.log('sini1');
+		  // const result = await page.evaluate(()=>{
+		  // 	let data1 = [];
+		  //   let elements = document.querySelectorAll('a.freelancer-tile-name')
+		  //   console.log('sini2');
+		  // 	for(var element of elements){
+		  // 		data1.push(element.href);
+		  //   }    
+		    
+		  // 	return data1;
+		  // });
+		  // console.log(result);
+
+		
+		
+
+
+	  // 	for (const link of result) {
+	  // 	  	await page.goto(link,{ timeout: 0 , waitUntil : 'domcontentloaded'});
+	  // 	  	const res = await page.evaluate(() => {
+		 //  	  	let name = document.querySelector('.col-xs-12.col-sm-8.col-md-9.col-lg-10 .media-body .m-xs-bottom span span');
+		 //  	  	let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');
+		 //  	  	let jobSuccess = document.querySelector('.visible-xxs.m-xs-top.p-lg-right .ng-isolate-scope .hidden-xxs .ng-scope h3');
+		 //  	  	let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
+		 //  	  	let data = [];
+
+		 //  	  	if(name){
+		 //  	  		data.push(name.textContent.replace(/\n/g, ''));
+		 //  	  	}else{
+		 //  	  		data.push('--');
+		 //  	  	}
+
+		 //  	  	if(jobCategory){
+		 //  	  		data.push(jobCategory.textContent.replace(/\n/g, ''));
+		 //  	  	}else{
+		 //  	  		data.push('--');
+		 //  	  	}
+		  	  	
+		 //  	  	for(var element of elements){
+		 //  	  		if(element){
+		 //  				data.push(element.textContent.replace(/\s/g, ''));
+		 //  			}else{
+		 //  				data.push('--');
+		 //  			}
+		 //    	} 
+		    	
+		 //    	if(jobSuccess){
+		 //    		data.push(jobSuccess.textContent);
+		 //    	}else{
+		 //    		data.push('0%');
+		 //    	}		    	
+				
+			// 	return data;
+	  // 	  	})
+			// globalData.push(res);
+	  // 	  	console.log(res)
+	  // 	}
+	}
+	browser.close(); 
+  // Return a value
+   // return result;
+};
+
+scrape().then(async (links) => {
+	console.log('finished');
+  // const browser = await puppeteer.launch({ headless: false });
+  // const page = await browser.newPage();
+  // page.setExtraHTTPHeaders({ 'user-agent': userAgent.getRandom()});
+
+  // await page.goto(links[0], { timeout: 0 });
+});
+
+
+async function getAllEmployeeLinks(page, url){
+	console.log('going to next page...');
+	await page.goto(url, { timeout: 0 , waitUntil : 'domcontentloaded'});
+	console.log('getting links from page...');
+	var result = [];
+	result = await page.evaluate(()=>{
+		let data1 = [];
+		let elements = document.querySelectorAll('a.freelancer-tile-name')
+		for(var element of elements){
+			data1.push(element.href);
+		}    
+		return data1;
+	});
+	
+	return result;
+}
