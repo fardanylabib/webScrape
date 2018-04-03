@@ -2,7 +2,22 @@ const puppeteer = require("puppeteer");
 const userAgent = require("random-useragent");
 const fs = require("fs");
 
-const URL_SOFTWARE_DEV = "https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=";
+const selectedUrlId = 5; //CHANGE THIS TO THE INDEXES BELOW
+const folderNameOffset = 43;
+
+const URLs = [	"https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=",  //0
+				"https://www.upwork.com/o/profiles/browse/c/it-networking/?loc=indonesia&page=",			//1
+				"https://www.upwork.com/o/profiles/browse/c/data-science-analytics/?loc=indonesia&page=",	//2
+				"https://www.upwork.com/o/profiles/browse/c/engineering-architecture/?loc=indonesia&page=",	//3
+				"https://www.upwork.com/o/profiles/browse/c/design-creative/?loc=indonesia&page=",			//4
+				"https://www.upwork.com/o/profiles/browse/c/writing/?loc=indonesia&page=",					//5
+				"https://www.upwork.com/o/profiles/browse/c/translation/?loc=indonesia&page=",				//6
+				"https://www.upwork.com/o/profiles/browse/c/legal/?loc=indonesia&page=",					//7
+				"https://www.upwork.com/o/profiles/browse/c/customer-service/?loc=indonesia&page=",			//8
+				"https://www.upwork.com/o/profiles/browse/c/sales-marketing/?loc=indonesia&page=",			//9
+				"https://www.upwork.com/o/profiles/browse/c/accounting-consulting/?loc=indonesia&page=",	//10
+				"https://www.upwork.com/o/profiles/browse/c/admin-support/?loc=indonesia&page=",];			//11
+
 
 const scrape = async () => {
 	const filter = (ua) => ua !== "mobile"
@@ -11,9 +26,9 @@ const scrape = async () => {
 	var agent = userAgent.getRandom(filter);
 	console.log(agent);
 	page.setExtraHTTPHeaders({ "user-agent": agent});
-
+	const folderName = URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+3);
 	//make file directory
-	fs.mkdir(".\\upwork_links",function(e){
+	fs.mkdir(".\\upwork_links\\"+folderName,function(e){
 	    if(!e || (e && e.code === 'EEXIST')){
 	        console.log("directory upwork_links created");
 	    } else {
@@ -26,11 +41,11 @@ const scrape = async () => {
   	let globalData = [];
   	for(let i = 1 ; i<=500 ; i++){
   		var links= [];
-  		links = await getAllEmployeeLinks(page, URL_SOFTWARE_DEV+i);
+  		links = await getAllEmployeeLinks(page, URLs[selectedUrlId]+i);
   		console.log("getting links process was done");
   		console.log(links);
   		if(links[0]){
-  			var stream = fs.createWriteStream(".\\upwork_links\\page_"+i+".txt");
+  			var stream = fs.createWriteStream(".\\upwork_links\\"+folderName+"\\page"+i+".txt");
   			console.log("writing links into file...");
 			for(const link of links){
 				stream.write(link + '\n');
