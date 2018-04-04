@@ -22,12 +22,11 @@
 	const scrape = async () => {
 		const filter = (ua) => ua !== 'mobile'
 	 	// Actual Scraping goes Here...
-	  	const browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
-	  	const page = await browser.newPage();
-	  	const agent = userAgent.getRandom(filter);
+	  	var browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
+	  	var page = await browser.newPage();
+	  	var agent = userAgent.getRandom(filter);
 	  	console.log(agent);
 	  	page.setExtraHTTPHeaders({ 'user-agent': agent});
-	  	let globalData = [];
 		
 		const folderName 	= URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
 		const linksPath 	= ".\\upwork_links\\"+folderName;
@@ -46,56 +45,39 @@
 	    	}
 		});
 	  	const outStream = fs.createWriteStream(dataPath+"\\data.txt");
-	  	var i=0;
 	  	for(const file of files){
 	  		if(file == "data"){
 		  		continue;
 		  	}
-		  	const links = fs.readFileSync(linksPath+"\\"+file);
-		  	const stringLinks = links.toString();
-		  	console.log(stringLinks);
-		  	for (const link of links) {
-		  		console.log("masuk situ 4");
-		  	  	await page.goto(link,{ timeout: 0 , waitUntil : 'domcontentloaded'});
-		  	  	const res = await page.evaluate(() => {
-			  	  	let name = document.querySelector('.col-xs-12.col-sm-8.col-md-9.col-lg-10 .media-body .m-xs-bottom span span');
-			  	  	let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');
-			  	  	let jobSuccess = document.querySelector('.visible-xxs.m-xs-top.p-lg-right .ng-isolate-scope .hidden-xxs .ng-scope h3');
-			  	  	let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
-			  	  	let data = [];
-
-			  	  	if(name){
-			  	  		data.push(name.textContent.replace(/\n/g, ''));
-			  	  	}else{
-			  	  		data.push('--');
-			  	  	}
-
-			  	  	if(jobCategory){
-			  	  		data.push(jobCategory.textContent.replace(/\n/g, ''));
-			  	  	}else{
-			  	  		data.push('--');
-			  	  	}
-			  	  	
-			  	  	for(var element of elements){
-			  	  		if(element){
-			  				data.push(element.textContent.replace(/\s/g, ''));
-			  			}else{
-			  				data.push('--');
-			  			}
-			    	} 
-			    	
-			    	if(jobSuccess){
-			    		data.push(jobSuccess.textContent);
-			    	}else{
-			    		data.push('0%');
-			    	}		    	
-					
-					return data;
-		  	  	})
-				globalData.push(res);
-		  	  	console.log(res)
+		  	var links = fs.readFileSync(linksPath+"\\"+file);
+		  	links = links.toString();
+		  	links = links.split("\n");
+			console.log(links);
+		  	for (let j = 0;j<links.length;j++) {
+		  		if(links[j].length<5 ){
+		  			continue;
+		  		}
+		  		var employeeData=[];
+		  		employeeData = await crawlEmployeeData(page,links[j]);
+		  	  	if(employeeData[0]!=="--"){
+		  	  		console.log("writing links into file...");
+		  	  		for(const data of employeeData){
+						outStream.write(data + ';');
+					}
+					outStream.write("\n");
+		  	  	}else{
+				  	console.log("reset browser...");
+		  			browser.close();
+					browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
+					page = await browser.newPage();
+					agent = userAgent.getRandom(filter);
+					console.log(agent);
+					page.setExtraHTTPHeaders({ "user-agent": agent});
+		  			j--;
+		  	  	}
 		  	}
 		}
+		stream.end();
 		browser.close(); 
 	  	// Return a value
 	  	return result;
@@ -109,3 +91,46 @@
 
 	  // await page.goto(links[0], { timeout: 0 });
 	});
+
+	async function crawlEmployeeData(page, url){
+		console.log('going to next page...');
+		await page.goto(url,{ timeout: 0 , waitUntil : 'domcontentloaded'});
+		console.log('getting employee data...');
+		const res = await page.evaluate(() => {
+	  	  	let name = document.querySelector('.col-xs-12.col-sm-8.col-md-9.col-lg-10 .media-body .m-xs-bottom span span');
+	  	  	let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');
+	  	  	let jobSuccess = document.querySelector('.visible-xxs.m-xs-top.p-lg-right .ng-isolate-scope .hidden-xxs .ng-scope h3');
+	  	  	let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
+	  	  	let data = [];
+
+	  	  	if(name){
+	  	  		data.push(name.textContent.replace(/\n/g, ''));
+	  	  	}else{
+	  	  		data.push('--');
+	  	  	}
+
+	  	  	if(jobCategory){
+	  	  		data.push(jobCategory.textContent.replace(/\n/g, ''));
+	  	  	}else{
+	  	  		data.push('--');
+	  	  	}
+	  	  	
+	  	  	for(var element of elements){
+	  	  		if(element){
+	  				data.push(element.textContent.replace(/\s/g, ''));
+	  			}else{
+	  				data.push('--');
+	  			}
+	    	} 
+	    	
+	    	if(jobSuccess){
+	    		data.push(jobSuccess.textContent);
+	    	}else{
+	    		data.push('0%');
+	    	}		    	
+			
+			return data;
+	  	});
+	  	console.log(res)
+	  	return res;
+	}
