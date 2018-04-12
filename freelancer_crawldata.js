@@ -2,7 +2,7 @@
 	const userAgent = require('random-useragent');
 	const fs = require("fs");
 
-	const selectedUrlId = 3; //CHANGE THIS TO THE INDEXES BELOW
+	const selectedUrlId = 5; //CHANGE THIS TO THE INDEXES BELOW
 	const folderNameOffset = 43;
 
 	const URLs = [	"https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=",  //0
@@ -56,8 +56,6 @@
 		  	for (let j = 0;j<links.length;j++) {
 		  		if(links[j].length<5 ){
 		  			continue;
-		  		}else if(links[j].includes("companies")){
-					continue;
 		  		}
 		  		var employeeData=[];
 		  		employeeData = await crawlEmployeeData(page,links[j]);
@@ -79,7 +77,7 @@
 		  	  	}
 		  	}
 		}
-		outStream.end();
+		stream.end();
 		browser.close(); 
 	  	// Return a value
 	  	return result;
@@ -100,9 +98,9 @@
 		console.log('getting employee data...');
 		const res = await page.evaluate(() => {
 	  	  	let name = document.querySelector('.col-xs-12.col-sm-8.col-md-9.col-lg-10 .media-body .m-xs-bottom span span');
-	 		let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');	  	  	
+	  	  	let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');
 	  	  	let jobSuccess = document.querySelector('.visible-xxs.m-xs-top.p-lg-right .ng-isolate-scope .hidden-xxs .ng-scope h3');
-	  	  	// let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
+	  	  	let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
 	  	  	let data = [];
 
 	  	  	if(name){
@@ -111,11 +109,11 @@
 	  	  		data.push('--');
 	  	  	}
 
-	  	  	// if(jobCategory){
-	  	  	// 	data.push(jobCategory.textContent.replace(/\n/g, ''));
-	  	  	// }else{
-	  	  	// 	data.push('--');
-	  	  	// }
+	  	  	if(jobCategory){
+	  	  		data.push(jobCategory.textContent.replace(/\n/g, ''));
+	  	  	}else{
+	  	  		data.push('--');
+	  	  	}
 	  	  	
 	  	  	for(var element of elements){
 	  	  		if(element){
@@ -123,18 +121,12 @@
 	  			}else{
 	  				data.push('--');
 	  			}
-	    	}
-	    	const len = elements.length;
-	    	if( len < 4){
-	    		for(var i = len;i<4;i++){
-	    			data.push("--");
-	    		}
 	    	} 
 	    	
 	    	if(jobSuccess){
 	    		data.push(jobSuccess.textContent);
 	    	}else{
-	    		data.push("not rated");
+	    		data.push('0%');
 	    	}		    	
 			
 			return data;

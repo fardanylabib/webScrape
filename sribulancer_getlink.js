@@ -2,21 +2,16 @@ const puppeteer = require("puppeteer");
 const userAgent = require("random-useragent");
 const fs = require("fs");
 
-const selectedUrlId = 3; //CHANGE THIS TO THE INDEXES BELOW
-const folderNameOffset = 43;
+const selectedUrlId = 0; //CHANGE THIS TO THE INDEXES BELOW
+const folderNameOffset = 52;
 
-const URLs = [	"https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=",  //0
-				"https://www.upwork.com/o/profiles/browse/c/it-networking/?loc=indonesia&page=",			//1
-				"https://www.upwork.com/o/profiles/browse/c/data-science-analytics/?loc=indonesia&page=",	//2
-				"https://www.upwork.com/o/profiles/browse/c/engineering-architecture/?loc=indonesia&page=",	//3
-				"https://www.upwork.com/o/profiles/browse/c/design-creative/?loc=indonesia&page=",			//4
-				"https://www.upwork.com/o/profiles/browse/c/writing/?loc=indonesia&page=",					//5
-				"https://www.upwork.com/o/profiles/browse/c/translation/?loc=indonesia&page=",				//6
-				"https://www.upwork.com/o/profiles/browse/c/legal/?loc=indonesia&page=",					//7
-				"https://www.upwork.com/o/profiles/browse/c/customer-service/?loc=indonesia&page=",			//8
-				"https://www.upwork.com/o/profiles/browse/c/sales-marketing/?loc=indonesia&page=",			//9
-				"https://www.upwork.com/o/profiles/browse/c/accounting-consulting/?loc=indonesia&page=",	//10
-				"https://www.upwork.com/o/profiles/browse/c/admin-support/?loc=indonesia&page=",];			//11
+const URLs = [	"https://www.sribulancer.com/id/bf/freelancer/v4/851/entri-data?page=",  					//0
+				"https://www.sribulancer.com/id/bf/freelancer/v4/622/pembuatan-aplikasi-seluler?page=",	//1
+				"https://www.sribulancer.com/id/bf/freelancer/v4/778/website-pengembangan?page=",			//2
+				"https://www.sribulancer.com/id/bf/freelancer/v4/157/desain-multimedia?page=",			//3
+				"https://www.sribulancer.com/id/bf/freelancer/v4/60/bisnis-pemasaran-online?page=",		//4
+				"https://www.sribulancer.com/id/bf/freelancer/v4/705/penulisan?page=",					//5
+				"https://www.sribulancer.com/id/bf/freelancer/v4/35/penerjemahan?page="];					//6
 
 
 const scrape = async () => {
@@ -29,12 +24,14 @@ const scrape = async () => {
 	const folderName = URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
 	//make file directory
 
-	fs.mkdir(".\\upwork_links",function(e){
+	const linksPath = ".\\sribulancer_links\\"+folderName;
+
+	fs.mkdir(".\\sribulancer_links",function(e){
 	    if(!e || (e && e.code === 'EEXIST')){
-	        console.log("directory upwork_links created");
-			fs.mkdir(".\\upwork_links\\"+folderName,function(e){
+	        console.log("directory sribulancer_links created");
+			fs.mkdir(linksPath,function(e){
 			    if(!e || (e && e.code === 'EEXIST')){
-			        console.log("directory " +folderName + " created");
+			        console.log("directory "+folderName+" created");
 			    } else {
 			        //debug
 			        console.log(e);
@@ -46,19 +43,19 @@ const scrape = async () => {
 	    }
 	});
 
-	
+
 
   	// Actual Scraping goes Here...
   	let globalData = [];
-  	var failFounter = 0;
-  	for(let i = 1 ; i<=100000 ; i++){
-  		
+  	var failCounter=0;
+  	for(let i = 1 ; i<=100000; i++){
   		var links= [];
   		links = await getAllEmployeeLinks(page, URLs[selectedUrlId]+i);
   		console.log("getting links process was done");
   		console.log(links);
+  		
   		if(links[0]){
-  			var stream = fs.createWriteStream(".\\upwork_links\\"+folderName+"\\page"+i+".txt");
+  			var stream = fs.createWriteStream(linksPath+"\\page"+i+".txt");
   			console.log("writing links into file...");
 			for(const link of links){
 				stream.write(link + '\n');
@@ -160,10 +157,13 @@ async function getAllEmployeeLinks(page, url){
 	var result = [];
 	result = await page.evaluate(()=>{
 		let data1 = [];
-		let elements = document.querySelectorAll('a.freelancer-tile-name')
-		for(var element of elements){
-			data1.push(element.href);
-		}    
+		let elements = document.querySelectorAll(".applicant-identity-v4.mb-5 a");
+		for(var i=0;i<elements.length;i+=3){
+			data1.push(elements[i].href);
+		}
+		// for(var element of elements){
+		// 	data1.push(element.href);
+		// }    
 		return data1;
 	});
 	

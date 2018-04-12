@@ -28,31 +28,18 @@ const scrape = async () => {
 	page.setExtraHTTPHeaders({ "user-agent": agent});
 	const folderName = URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
 	//make file directory
-
-	fs.mkdir(".\\upwork_links",function(e){
+	fs.mkdir(".\\upwork_links\\"+folderName,function(e){
 	    if(!e || (e && e.code === 'EEXIST')){
 	        console.log("directory upwork_links created");
-			fs.mkdir(".\\upwork_links\\"+folderName,function(e){
-			    if(!e || (e && e.code === 'EEXIST')){
-			        console.log("directory " +folderName + " created");
-			    } else {
-			        //debug
-			        console.log(e);
-			    }
-			});
 	    } else {
 	        //debug
 	        console.log(e);
 	    }
 	});
 
-	
-
   	// Actual Scraping goes Here...
   	let globalData = [];
-  	var failFounter = 0;
-  	for(let i = 1 ; i<=100000 ; i++){
-  		
+  	for(let i = 1 ; i<=500 ; i++){
   		var links= [];
   		links = await getAllEmployeeLinks(page, URLs[selectedUrlId]+i);
   		console.log("getting links process was done");
@@ -66,10 +53,6 @@ const scrape = async () => {
 			stream.end();
 			console.log("page "+i+" was recorded!");
   		}else{
-  			if(failCounter > 10){
-  				break;
-  			}
-  			failCounter++;
   			console.log("reset browser...");
   			browser.close();
 			browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
