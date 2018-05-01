@@ -322,11 +322,12 @@ async function getAllEmployeeLinks(page, lastLinks){
 	});
 	if(next){
 		await page.click(".Pagination .Pagination-item .flicon-pagination-next");
-		await page.waitForNavigation({ "waitUntil": "networkidle2" });
-		
+		// await page.waitForNavigation({ "waitUntil": "networkidle2" });
+		await page.waitForSelector('.ns_freelancer-list');	// element for display freelancer
 	}else{
 		return null;
 	}
+	console.log('yeeayy, depak sini')
 
 	if(compareArray(linkHref,lastLinks)){
 		console.log(linkHref);
