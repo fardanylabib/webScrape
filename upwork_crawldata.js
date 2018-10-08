@@ -85,14 +85,7 @@
 	  	return result;
 	};
 
-	scrape().then(async (links) => {
-		console.log('sini4');
-	  // const browser = await puppeteer.launch({ headless: false });
-	  // const page = await browser.newPage();
-	  // page.setExtraHTTPHeaders({ 'user-agent': userAgent.getRandom()});
-
-	  // await page.goto(links[0], { timeout: 0 });
-	});
+	scrape().then(async (links) => {});
 
 	async function crawlEmployeeData(page, url){
 		console.log('going to next page...');

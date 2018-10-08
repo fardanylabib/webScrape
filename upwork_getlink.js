@@ -1,10 +1,11 @@
 const puppeteer = require("puppeteer");
 const userAgent = require("random-useragent");
-const fs = require("fs");
+const fs 		= require("fs");
+const cluster 	= require('cluster');
+const numCPUs = require("os").cpus().length;
 
-const selectedUrlId = 3; //CHANGE THIS TO THE INDEXES BELOW
 const folderNameOffset = 43;
-
+const TIME_DELAY_2 = 2000;
 const URLs = [	"https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=",  //0
 				"https://www.upwork.com/o/profiles/browse/c/it-networking/?loc=indonesia&page=",			//1
 				"https://www.upwork.com/o/profiles/browse/c/data-science-analytics/?loc=indonesia&page=",	//2
@@ -18,21 +19,32 @@ const URLs = [	"https://www.upwork.com/o/profiles/browse/c/web-mobile-software-d
 				"https://www.upwork.com/o/profiles/browse/c/accounting-consulting/?loc=indonesia&page=",	//10
 				"https://www.upwork.com/o/profiles/browse/c/admin-support/?loc=indonesia&page=",];			//11
 
+var startPage = process.argv[3];
+var urlID = process.argv[2] - 1;
 
-const scrape = async () => {
-	const filter = (ua) => ua !== "mobile"
-	var browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
-	var page = await browser.newPage();
+const usingChrome = { headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" };
+const usingChromium = { headless: false};
+
+async function doScraping(selectedUrlId,selectedStartPage){
+	console.log("URL ID = "+selectedUrlId);
+	console.log("START PAGE = "+selectedStartPage);
+	
+	let finishFlag = 0
+	var browser = await puppeteer.launch(usingChrome);
+	
+	const filter = (ua) => ua !== "mobile";
 	var agent = userAgent.getRandom(filter);
+	var page = await browser.newPage();
 	console.log(agent);
 	page.setExtraHTTPHeaders({ "user-agent": agent});
+	const resultDirectory = ".\\Result\\upwork_links\\";
 	const folderName = URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
-	//make file directory
+	//make file directory".\\Result\\upwork_links";
 
-	fs.mkdir(".\\upwork_links",function(e){
+	fs.mkdir(resultDirectory,function(e){
 	    if(!e || (e && e.code === 'EEXIST')){
 	        console.log("directory upwork_links created");
-			fs.mkdir(".\\upwork_links\\"+folderName,function(e){
+			fs.mkdir(resultDirectory+folderName,function(e){
 			    if(!e || (e && e.code === 'EEXIST')){
 			        console.log("directory " +folderName + " created");
 			    } else {
@@ -46,117 +58,70 @@ const scrape = async () => {
 	    }
 	});
 
-	
-
   	// Actual Scraping goes Here...
-  	let globalData = [];
-  	var failFounter = 0;
-  	for(let i = 1 ; i<=100000 ; i++){
-  		
-  		var links= [];
-  		links = await getAllEmployeeLinks(page, URLs[selectedUrlId]+i);
+  	let failCounter = 0;
+  	var links= [];
+  	while(failCounter<10 && selectedStartPage<=500){  
+  		console.log("getting links from page " +selectedStartPage);	
+  		await page.goto(URLs[selectedUrlId]+selectedStartPage, { timeout: 0, waitUntil : 'domcontentloaded'});	
+  		links = await getAllEmployeeLinks(page);
   		console.log("getting links process was done");
   		console.log(links);
-  		if(links[0]){
-  			var stream = fs.createWriteStream(".\\upwork_links\\"+folderName+"\\page"+i+".txt");
+  		if(links[0]){		
+  			let fileExist = -1;
+  			let index = 0;
+  			let fileName = "";
+  			while(fileExist != 0){
+  				if(index === 0){
+  					fileName = resultDirectory+folderName+"\\page"+selectedStartPage+".txt";
+  				}else{
+  					fileName = resultDirectory+folderName+"\\page"+selectedStartPage+"("+ index +").txt";
+  				}
+	  			if(fs.existsSync(fileName)){
+	  				index++;
+	  			}else{
+	  				fileExist = 0;
+	  			}
+  			}
+  			
+  			var stream = fs.createWriteStream(fileName);
   			console.log("writing links into file...");
 			for(const link of links){
+
+				if(link == new String("LAST").valueOf()){
+					console.log("LAST PAGE REACHED");
+					failCounter = 100;
+					break;
+				}
 				stream.write(link + '\n');
 			}
 			stream.end();
-			console.log("page "+i+" was recorded!");
+			console.log("page "+selectedStartPage+" was recorded!");
+			selectedStartPage++;
+			failCounter = 0;
   		}else{
-  			if(failCounter > 10){
-  				break;
-  			}
-  			failCounter++;
+  			failCounter++
+  			await page.waitFor(300);
   			console.log("reset browser...");
   			browser.close();
-			browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
+  			if(failCounter%2 === 1){
+  				browser = await puppeteer.launch(usingChromium);
+  			}else{
+  				browser = await puppeteer.launch(usingChrome);
+  			}
+			
 			page = await browser.newPage();
 			agent = userAgent.getRandom(filter);
 			console.log(agent);
 			page.setExtraHTTPHeaders({ "user-agent": agent});
-  			i--;
   		}
-		  // await page.goto('https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page='+i, { timeout: 0 , waitUntil : 'domcontentloaded'});
-		  // console.log('sini1');
-		  // const result = await page.evaluate(()=>{
-		  // 	let data1 = [];
-		  //   let elements = document.querySelectorAll('a.freelancer-tile-name')
-		  //   console.log('sini2');
-		  // 	for(var element of elements){
-		  // 		data1.push(element.href);
-		  //   }    
-		    
-		  // 	return data1;
-		  // });
-		  // console.log(result);
-
-		
-		
-
-
-	  // 	for (const link of result) {
-	  // 	  	await page.goto(link,{ timeout: 0 , waitUntil : 'domcontentloaded'});
-	  // 	  	const res = await page.evaluate(() => {
-		 //  	  	let name = document.querySelector('.col-xs-12.col-sm-8.col-md-9.col-lg-10 .media-body .m-xs-bottom span span');
-		 //  	  	let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');
-		 //  	  	let jobSuccess = document.querySelector('.visible-xxs.m-xs-top.p-lg-right .ng-isolate-scope .hidden-xxs .ng-scope h3');
-		 //  	  	let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
-		 //  	  	let data = [];
-
-		 //  	  	if(name){
-		 //  	  		data.push(name.textContent.replace(/\n/g, ''));
-		 //  	  	}else{
-		 //  	  		data.push('--');
-		 //  	  	}
-
-		 //  	  	if(jobCategory){
-		 //  	  		data.push(jobCategory.textContent.replace(/\n/g, ''));
-		 //  	  	}else{
-		 //  	  		data.push('--');
-		 //  	  	}
-		  	  	
-		 //  	  	for(var element of elements){
-		 //  	  		if(element){
-		 //  				data.push(element.textContent.replace(/\s/g, ''));
-		 //  			}else{
-		 //  				data.push('--');
-		 //  			}
-		 //    	} 
-		    	
-		 //    	if(jobSuccess){
-		 //    		data.push(jobSuccess.textContent);
-		 //    	}else{
-		 //    		data.push('0%');
-		 //    	}		    	
-				
-			// 	return data;
-	  // 	  	})
-			// globalData.push(res);
-	  // 	  	console.log(res)
-	  // 	}
 	}
 	browser.close(); 
-  // Return a value
-   // return result;
+	finishFlag = 1;
+	return finishFlag;
 };
 
-scrape().then(async (links) => {
-	console.log('finished');
-  // const browser = await puppeteer.launch({ headless: false });
-  // const page = await browser.newPage();
-  // page.setExtraHTTPHeaders({ 'user-agent': userAgent.getRandom()});
-
-  // await page.goto(links[0], { timeout: 0 });
-});
-
-
-async function getAllEmployeeLinks(page, url){
-	console.log('going to next page...');
-	await page.goto(url, { timeout: 0 , waitUntil : 'domcontentloaded'});
-	console.log('getting links from page...');
+async function getAllEmployeeLinks(page){
 	var result = [];
 	result = await page.evaluate(()=>{
 		let data1 = [];
@@ -167,5 +132,37 @@ async function getAllEmployeeLinks(page, url){
 		return data1;
 	});
 	
+	// const next = await page.evaluate(() => {
+
+ //    	const tombol = document.querySelector(".pagination-next a .d-none.d-sm-inline");
+ //    	return tombol;
+	// });
+
+	// if(next){
+	// 	await page.click(".pagination-next a .d-none.d-sm-inline");
+	// 	await page.waitFor(TIME_DELAY_2);
+	// 	// await page.waitForSelector('.ns_freelancer-list');	// element for display freelancer
+	// }else{
+	// 	//if result exist
+	// 	if(result[0]){
+	// 		result.push("LAST");
+	// 	}
+	// }
 	return result;
 }
+
+
+doScraping(urlID,startPage);
+
+// async function parallelScrap(beginUrlIndex, threadNumber){
+
+// 	let finishFlag = 0;
+// 	for(let i = beginUrlIndex ; i<(beginUrlIndex+threadNumber); i++ ){
+// 		if(i < URLs.length){
+// 			finishFlag += doScraping(i);
+// 		}
+// 	}
+// 	return finishFlag;
+// }
+
+// parallelScrap(0,6);
