@@ -29,7 +29,7 @@
 	  	page.setExtraHTTPHeaders({ 'user-agent': agent});
 		
 		const folderName 	= URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
-		const linksPath 	= ".\\upwork_links\\"+folderName;
+		const linksPath 	= ".\\Result\\upwork_links\\"+folderName;
 		const dataPath 		= linksPath+"\\data";
 		
 		

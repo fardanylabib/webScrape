@@ -2,209 +2,253 @@ const puppeteer = require('puppeteer');
 const userAgent = require('random-useragent');
 const fs = require("fs");
 
-const selectedUrlId = 0; //CHANGE THIS TO THE INDEXES BELOW
-const folderNameOffset = 52;
+const TIME_DELAY_1 = 1000;
+const TIME_DELAY_2 = 2000;
+const MAX_FAIL_LIMIT = 5;
 
-const URLs = [	"https://www.sribulancer.com/id/bf/freelancer/v4/851/entri-data?page=",  					//0
-				"https://www.sribulancer.com/id/bf/freelancer/v4/622/pembuatan-aplikasi-seluler?page=",	//1
-				"https://www.sribulancer.com/id/bf/freelancer/v4/778/website-pengembangan?page=",			//2
-				"https://www.sribulancer.com/id/bf/freelancer/v4/157/desain-multimedia?page=",			//3
-				"https://www.sribulancer.com/id/bf/freelancer/v4/60/bisnis-pemasaran-online?page=",		//4
-				"https://www.sribulancer.com/id/bf/freelancer/v4/705/penulisan?page=",					//5
-				"https://www.sribulancer.com/id/bf/freelancer/v4/35/penerjemahan?page="];					//6
+let startLink = process.argv[2] - 1;
 
-
-const scrape = async () => {
-	const filter = (ua) => ua !== 'mobile';
- 	// Actual Scraping goes Here...
-  	var browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
-  	var page = await browser.newPage();
-  	var agent = userAgent.getRandom(filter);
-  	console.log(agent);
-  	page.setExtraHTTPHeaders({ 'user-agent': agent});
-	
-	const folderName 	= URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
-	const linksPath 	= ".\\sribulancer_links\\"+folderName;
-	const dataPath 		= linksPath+"\\data";
-	
-	
-
-  	const files = fs.readdirSync(linksPath);
-
-  	fs.mkdir(dataPath,function(e){
-    	if(!e || (e && e.code === 'EEXIST')){
-        	console.log("directory "+dataPath+" created");
-    	} else {
-        	//debug
-        	console.log(e);
-    	}
-	});
-  	const outStream = fs.createWriteStream(dataPath+"\\data.txt");
-  	for(const file of files){
-  		if(file == "data"){
-	  		continue;
-	  	}
-	  	var links = fs.readFileSync(linksPath+"\\"+file);
-	  	links = links.toString();
-	  	links = links.split("\n");
-		  console.log(links);
-	  	for (let j = 0;j<links.length;j++) {
-	  		if(links[j].length<5 ){
-	  			continue;
-	  		}
-	  		var employeeData=[];
-	  		employeeData = await crawlEmployeeData(page,links[j]);
-	  	  if(employeeData[0]!=="--"){
-	  	    console.log("writing links into file...");
-	  	  	for(const data of employeeData){
-					 outStream.write(data + ';');
-				  }
-				  outStream.write("\n");
-	  	  }else{
-			  	console.log("reset browser...");
-	  			browser.close();
-  				browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
-  				page = await browser.newPage();
-  				agent = userAgent.getRandom(filter);
-  				console.log(agent);
-  				page.setExtraHTTPHeaders({ "user-agent": agent});
-	  			j--;
-	  	  }
-	  	}
-	}
-	stream.end();
-	browser.close(); 
-  	// Return a value
-  	return result;
-};
-
-scrape().then(async (links) => {
-	console.log('sini4');
-  // const browser = await puppeteer.launch({ headless: false });
-  // const page = await browser.newPage();
-  // page.setExtraHTTPHeaders({ 'user-agent': userAgent.getRandom()});
-
-  // await page.goto(links[0], { timeout: 0 });
+const scrape = async (start) => {
+// Actual Scraping goes Here...
+var browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
+var page = await browser.newPage();
+var agent = userAgent.getRandom(function (ua) {
+	return ua.osName === 'Linux';
 });
+console.log(agent);
+page.setExtraHTTPHeaders({ 'user-agent': agent});
+
+const linksDir  = ".\\Result\\sribulancer_links\\";
+
+//output path setup
+let fileExist = -1;
+let index = 0;
+let fileName = "";
+while(fileExist != 0){
+	if(index === 0){
+		fileName = linksDir+"RawData.csv";
+	}else{
+		fileName = linksDir+"RawData("+ index +").csv";
+	}
+	if(fs.existsSync(fileName)){
+		index++;
+	}else{
+		fileExist = 0;
+	}
+}
+console.log("File Name = "+fileName);
+const outStream = fs.createWriteStream(fileName);
+
+//input path setup
+const databaseFile  = linksDir + "database.txt";
+var links = fs.readFileSync(databaseFile);
+links = links.toString();
+links = links.split("\n");
+let failCounter = 0;
+for (let j = startLink;j<links.length;j++) {
+	var employeeData=[];
+	employeeData = await crawlEmployeeData(page,links[j]);
+	if(employeeData[0] !=="--"){
+		console.log("writing links into file...");
+		for(let data of employeeData){
+			data = data.replace(/,/g, ".");
+			data = data.replace((/  |\r\n|\n|\r/gm),"");
+			outStream.write(data + ",");
+		}
+		outStream.write("\n");
+		console.log(employeeData);
+		failCounter = 0;
+	}else{
+		failCounter++;
+		console.log("reset browser...");
+		browser.close();
+		browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
+		page = await browser.newPage();
+		agent = userAgent.getRandom(function (ua) {
+			return ua.osName === 'Linux';
+		});
+		console.log(agent);
+		page.setExtraHTTPHeaders({ "user-agent": agent});
+		if(failCounter<MAX_FAIL_LIMIT){
+			j--;
+		}
+	}
+}
+stream.end();
+browser.close(); 
+// Return a value
+return result;
+};
 
 async function crawlEmployeeData(page, url){
 	console.log('going to next page...');
-	await page.goto(url,{ timeout: 0 , waitUntil : 'domcontentloaded'});
+	await page.goto(url,{ timeout: 0 , waitUntil : 'load'});
 	console.log('getting employee data...');
-  var showmore=null;;
-  var i=0;
-  do{
-    showmore = await extractPage(page);
-    console.log("showmore "+(i++));
-  }while (showmore!==null);
-  
-  
-	const res = await page.evaluate(() => {
-      var employeeData = [];
 
-      //get name of freelancer
-  	  const name = document.querySelector(".user__fullname.u-text-truncate");
-      if(name){
-        employeeData.push(name.textContent);
-      }else{
-        employeeData.push("--");
-      }
+  	let res = [];
+	res = await page.evaluate(() => {
+		let name = document.querySelector(".row > .col-md-5 > .col-md-12 > .user__info-app > .user__username:nth-child(1)");
+		let specialization = document.querySelector(".tab-content > #profile_tab > .user__bio-v2 > .mb-50 > .bio");
+		let skillSet = document.querySelectorAll("#profile_tab > .mb-50 > #js-skill-review-list > .row > .u-text-truncate");
 
-      //get total money earned and total job success   
-      const moneys = document.querySelectorAll(".reviewSummary-v2.panel.mt-20 .panel-body.reviewSummary-panel-body .row .col-sm-3 .row .col-sm-12 .iblocks.summary__price");
-      if(moneys){
-        console.log("masuk 1");
-        var totalMoney = 0;
-        if(moneys.length > 0){
-          for(var money of moneys){
-            money = money.textContent;
-            money = money.replace("IDR ","");
-            money = money.replace(",","");
-            money = parseInt(money);
-            totalMoney += money;
-            console.log(money);
-          
-          }
-        } 
-        console.log("masuk 2");
-        employeeData.push(totalMoney);    //total money earned
-        employeeData.push(moneys.length); //total job success
-      // }
-      // else if(moneys){
-      //   console.log("masuk 2");
-      //   var totalMoney = moneys.textContent;
-      //   totalMoney = totalMoney.replace("IDR ","");
-      //   totalMoney = totalMoney.replace(",","");
-      //   totalMoney = parseInt(totalMoney);
-      //   console.log(totalMoney);
-      //   employeeData.push(totalMoney);    //total money earned
-      //   employeeData.push(1); //total job success
-      }
-      else{
-        console.log("masuk 3");
-        employeeData.push("--");
-        employeeData.push("--");
-      }
+		let data = [];
 
-      //get total job accepted (job success + job fail)
-      var jobFail = document.querySelector(".list-unstyled.no-mb");
-      var totalJob = 0;
-      if(jobFail){
-        console.log("masuk 4");
-        jobFail = jobFail.textContent;
-        var pos = jobFail.indexOf("tidak selesai:");
-        jobFail = jobFail.substring(pos+14);
-        jobFail = parseInt(jobFail);
-        if(moneys){
-          console.log("masuk 5");
-          totalJob = moneys.length+jobFail;
-        // }
-        // else if(moneys){
-        //   totalJob= jobFail + 1;
-        }
-        else{
-          totalJob= jobFail;
-        } 
-      }else{
-        console.log("masuk 6");
-        totalJob = 0;
-      }              
-      employeeData.push(totalJob); 
+		if(name){
+			data.push(name.textContent);
+		}else{
+			data.push('--');
+		}
 
-      //get date of joined
-      const joinFrom = document.querySelectorAll(".text-muted.mb-10");
-      var date;
-      if(joinFrom && joinFrom.length>0){
-        console.log("masuk 7");
-        date = joinFrom[joinFrom.length - 1].textContent;
-      // }
-      // else if(joinFrom){
-      //   date = joinFrom.textContent;
-      }
-      else{
-        console.log("masuk 8");
-        date = "new joiner or no job accepted yet"; 
-      }
-      employeeData.push(date); 
+		if(specialization){
+			data.push(specialization.textContent);
+		}else{
+			data.push('--');
+		}
 
-      return employeeData;
-  	});
-  	console.log(res)
-  	return res;
+		let strData = "";
+		for(let skill of skillSet){
+			if(skill){
+				strData = strData + skill.innerText + "//";
+			}else{
+				strData = strData+"--";
+			}
+		} 
+		data.push(strData);
+		return data;
+	});
+
+	//go to review tab
+	await page.waitForSelector('.row > .col-sm-12 > #myTab > li:nth-child(3) > a');
+  	await page.click('.row > .col-sm-12 > #myTab > li:nth-child(3) > a');
+  	await page.waitFor(TIME_DELAY_2);
+
+	while(true){
+		let previousReviewsLength = 0;
+		let reviewsLength = 0;
+		previousReviewsLength = await page.evaluate(() =>{
+			let reviews  = document.querySelectorAll(".reviewSummary-v2.panel.mt-20");
+			if(reviews){
+				return reviews.length;
+			}else{
+				return 0;
+			}
+		});
+
+		//scraping ends here if there is no project done yet
+		if(previousReviewsLength == 0){
+			console.log("no project");
+			res.push('--');
+			res.push('--');
+			res.push('--');
+			return res;
+		}
+
+		try{
+			let tombol = await page.evaluate(() =>{
+				let available  = document.querySelector(".tab-pane.fade.active.in .create_cancel.form-horizontal .text-center .btn.btn-default.btn-md.mt-20");
+				return available;
+			});
+
+			if(tombol === null){
+				console.log("no button");
+				break;
+			}
+
+			if(tombol){
+				console.log("click button");
+				await page.waitForSelector(".tab-pane.fade.active.in .create_cancel.form-horizontal .text-center .btn.btn-default.btn-md.mt-20");
+				await page.click(".tab-pane.fade.active.in .create_cancel.form-horizontal .text-center .btn.btn-default.btn-md.mt-20");
+			}else{
+				console.log("no button");
+				break;
+			}
+		}catch(err){
+			console.log("no button");
+			break;
+		}
+		while(true){
+			reviewsLength = await page.evaluate(() =>{
+				let reviews  = document.querySelectorAll(".reviewSummary-v2.panel.mt-20");
+				if(reviews){
+					return reviews.length;
+				}else{
+					return 0;
+				}
+			});
+			if(reviewsLength == 0){
+				console.log("no project");
+				break;
+			}else if(reviewsLength != previousReviewsLength){
+				console.log("reviewsLength = "+reviewsLength);
+				console.log("previousReviewsLength = "+previousReviewsLength);
+				break;
+			}
+			console.log("wait until page loaded");
+			await page.waitFor(TIME_DELAY_1)		
+		}
+		previousReviewsLength = reviewsLength;
+	}
+
+	//get all projects and money earned per peroject
+	let moreData = await page.evaluate(() =>{
+		let additionalData = [];
+		const moneys = document.querySelectorAll(".reviewSummary-v2.panel.mt-20 .panel-body.reviewSummary-panel-body .row .col-sm-3 .row .col-sm-12 .iblocks.summary__price");
+		let strData = ""
+		let totalMoney = 0;
+		if(moneys){
+			for(let money of moneys){
+				money = money.textContent;
+	            money = money.replace("IDR ","");
+	            money = money.replace(/,/g, "");
+	            money = parseInt(money);
+	            totalMoney += money;
+			}
+			strData = ""+totalMoney;
+		}else{
+			strData = "--";
+		}
+		additionalData.push(strData);
+
+		const taskDone = document.querySelectorAll(".reviewSummary-v2 > .panel-body > .row > .col-sm-7 > .row > .col-sm-12 > .blocks > .blocks:nth-child(1)");
+		strData = "";
+		if(taskDone){
+			for(let task of taskDone){
+				task = task.textContent;
+				strData += (task +"//");
+			}
+		}else{
+			strData = "--";
+		}
+		additionalData.push(strData);
+
+		const date = document.querySelectorAll(".reviewSummary-v2 > .panel-body > .row > .col-sm-7 > .row > .col-sm-12 > .blocks > .blocks > .text-muted");
+		let firstDate = "";
+		if(date){
+			firstDate = date[date.length - 1].textContent;	
+		}else{
+			firstDate = "--";
+		}
+		additionalData.push(firstDate);
+
+		return additionalData;
+	});
+	
+	for(let data of moreData){
+		res.push(data);
+	}
+	return res;
 }
 
-async function extractPage(page){
-  const showmore = await page.evaluate(() => {
-    const tombol = document.querySelector(".col-sm-12.pb-20.profile-panel-v2.mt-20 .create_cancel.form-horizontal .btn.btn-default.btn-md.mt-20");
-    return tombol;
-  });
-  if(showmore){
-    await page.click(".col-sm-12.pb-20.profile-panel-v2.mt-20 .create_cancel.form-horizontal .btn.btn-default.btn-md.mt-20"); 
-    await page.waitFor(1500);
-  }
-  return showmore;
-}
-
-// function sleep(ms) {
-//   return new Promise(resolve => setTimeout(resolve, ms));
+// function compareArray(arr1, arr2){
+// 	if(arr1.length !== arr2.length){
+// 		return false;
+// 	}
+// 	for(var i = 0; i< arr1.length ; i++){
+// 		if(arr1[i] !== arr2[i]){
+// 			return false;
+// 		}
+// 	}
+// 	return true;
 // }
+
+scrape(startLink);

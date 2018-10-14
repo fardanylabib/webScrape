@@ -1,136 +1,153 @@
-	const puppeteer = require('puppeteer');
-	const userAgent = require('random-useragent');
-	const fs = require("fs");
+const puppeteer = require('puppeteer');
+const userAgent = require('random-useragent');
+const fs = require("fs");
 
-	const selectedUrlId = 5; //CHANGE THIS TO THE INDEXES BELOW
-	const folderNameOffset = 43;
+const TIME_DELAY_1 = 1000;
+const TIME_DELAY_2 = 2000;
+const MAX_FAIL_LIMIT = 5;
 
-	const URLs = [	"https://www.upwork.com/o/profiles/browse/c/web-mobile-software-dev/?loc=indonesia&page=",  //0
-					"https://www.upwork.com/o/profiles/browse/c/it-networking/?loc=indonesia&page=",			//1
-					"https://www.upwork.com/o/profiles/browse/c/data-science-analytics/?loc=indonesia&page=",	//2
-					"https://www.upwork.com/o/profiles/browse/c/engineering-architecture/?loc=indonesia&page=",	//3
-					"https://www.upwork.com/o/profiles/browse/c/design-creative/?loc=indonesia&page=",			//4
-					"https://www.upwork.com/o/profiles/browse/c/writing/?loc=indonesia&page=",					//5
-					"https://www.upwork.com/o/profiles/browse/c/translation/?loc=indonesia&page=",				//6
-					"https://www.upwork.com/o/profiles/browse/c/legal/?loc=indonesia&page=",					//7
-					"https://www.upwork.com/o/profiles/browse/c/customer-service/?loc=indonesia&page=",			//8
-					"https://www.upwork.com/o/profiles/browse/c/sales-marketing/?loc=indonesia&page=",			//9
-					"https://www.upwork.com/o/profiles/browse/c/accounting-consulting/?loc=indonesia&page=",	//10
-					"https://www.upwork.com/o/profiles/browse/c/admin-support/?loc=indonesia&page=",];			//11
+var startLink = process.argv[2] - 1;
 
-
-	const scrape = async () => {
-		const filter = (ua) => ua !== 'mobile'
-	 	// Actual Scraping goes Here...
-	  	var browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
-	  	var page = await browser.newPage();
-	  	var agent = userAgent.getRandom(filter);
-	  	console.log(agent);
-	  	page.setExtraHTTPHeaders({ 'user-agent': agent});
-		
-		const folderName 	= URLs[selectedUrlId].substring(folderNameOffset,folderNameOffset+4);
-		const linksPath 	= ".\\upwork_links\\"+folderName;
-		const dataPath 		= linksPath+"\\data";
-		
-		
-
-	  	const files = fs.readdirSync(linksPath);
-
-	  	fs.mkdir(dataPath,function(e){
-	    	if(!e || (e && e.code === 'EEXIST')){
-	        	console.log("directory upwork_links created");
-	    	} else {
-	        	//debug
-	        	console.log(e);
-	    	}
-		});
-	  	const outStream = fs.createWriteStream(dataPath+"\\data.txt");
-	  	for(const file of files){
-	  		if(file == "data"){
-		  		continue;
-		  	}
-		  	var links = fs.readFileSync(linksPath+"\\"+file);
-		  	links = links.toString();
-		  	links = links.split("\n");
-			console.log(links);
-		  	for (let j = 0;j<links.length;j++) {
-		  		if(links[j].length<5 ){
-		  			continue;
-		  		}
-		  		var employeeData=[];
-		  		employeeData = await crawlEmployeeData(page,links[j]);
-		  	  	if(employeeData[0]!=="--"){
-		  	  		console.log("writing links into file...");
-		  	  		for(const data of employeeData){
-						outStream.write(data + ';');
-					}
-					outStream.write("\n");
-		  	  	}else{
-				  	console.log("reset browser...");
-		  			browser.close();
-					browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
-					page = await browser.newPage();
-					agent = userAgent.getRandom(filter);
-					console.log(agent);
-					page.setExtraHTTPHeaders({ "user-agent": agent});
-		  			j--;
-		  	  	}
-		  	}
-		}
-		stream.end();
-		browser.close(); 
-	  	// Return a value
-	  	return result;
-	};
-
-	scrape().then(async (links) => {
-		console.log('sini4');
-	  // const browser = await puppeteer.launch({ headless: false });
-	  // const page = await browser.newPage();
-	  // page.setExtraHTTPHeaders({ 'user-agent': userAgent.getRandom()});
-
-	  // await page.goto(links[0], { timeout: 0 });
+const scrape = async (start) => {
+ 	// Actual Scraping goes Here...
+  	var browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
+  	var page = await browser.newPage();
+  	var agent = userAgent.getRandom(function (ua) {
+		return ua.osName === 'Linux';
 	});
-
-	async function crawlEmployeeData(page, url){
-		console.log('going to next page...');
-		await page.goto(url,{ timeout: 0 , waitUntil : 'domcontentloaded'});
-		console.log('getting employee data...');
-		const res = await page.evaluate(() => {
-	  	  	let name = document.querySelector('.col-xs-12.col-sm-8.col-md-9.col-lg-10 .media-body .m-xs-bottom span span');
-	  	  	let elements = document.querySelectorAll('.list-inline.m-0-bottom .m-xs-bottom');
-	  	  	let jobSuccess = document.querySelector('.visible-xxs.m-xs-top.p-lg-right .ng-isolate-scope .hidden-xxs .ng-scope h3');
-	  	  	let jobCategory = document.querySelector('.up-active-context.up-active-context-title.fe-job-title span');
-	  	  	let data = [];
-
-	  	  	if(name){
-	  	  		data.push(name.textContent.replace(/\n/g, ''));
-	  	  	}else{
-	  	  		data.push('--');
-	  	  	}
-
-	  	  	if(jobCategory){
-	  	  		data.push(jobCategory.textContent.replace(/\n/g, ''));
-	  	  	}else{
-	  	  		data.push('--');
-	  	  	}
-	  	  	
-	  	  	for(var element of elements){
-	  	  		if(element){
-	  				data.push(element.textContent.replace(/\s/g, ''));
-	  			}else{
-	  				data.push('--');
-	  			}
-	    	} 
-	    	
-	    	if(jobSuccess){
-	    		data.push(jobSuccess.textContent);
-	    	}else{
-	    		data.push('0%');
-	    	}		    	
-			
-			return data;
-	  	});
-	  	console.log(res)
-	  	return res;
+  	console.log(agent);
+  	page.setExtraHTTPHeaders({ 'user-agent': agent});
+  	
+	const linksDir 	= ".\\Result\\freelancer_links\\";
+	
+	//output path setup
+	let fileExist = -1;
+	let index = 0;
+	let fileName = "";
+	while(fileExist != 0){
+		if(index === 0){
+			fileName = linksDir+"RawData.csv";
+		}else{
+			fileName = linksDir+"RawData("+ index +").csv";
+		}
+		if(fs.existsSync(fileName)){
+			index++;
+		}else{
+			fileExist = 0;
+		}
 	}
+	console.log("File Name = "+fileName);
+  	const outStream = fs.createWriteStream(fileName);
+
+	//input path setup
+	const databaseFile 	= linksDir + "database.txt";
+  	var links = fs.readFileSync(databaseFile);
+  	links = links.toString();
+  	links = links.split("\n");
+  	let failCounter = 0;
+  	for (let j = startLink;j<links.length;j++) {
+  		var employeeData=[];
+  		employeeData = await crawlEmployeeData(page,links[j]);
+  	  	if(employeeData[0] !=="--"){
+  	  		console.log("writing links into file...");
+  	  		for(let data of employeeData){
+  	  			data = data.replace(/,/g, ".");
+  	  			data = data.replace(/,/g, ".");
+  	  			data = data.replace((/  |\r\n|\n|\r/gm),"");
+				outStream.write(data + ",");
+			}
+			outStream.write("\n");
+			console.log(employeeData);
+  	  	}else{
+  	  		failCounter++;
+		  	console.log("reset browser...");
+  			browser.close();
+			browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
+			page = await browser.newPage();
+			agent = userAgent.getRandom(function (ua) {
+				return ua.osName === 'Linux';
+			});
+			console.log(agent);
+			page.setExtraHTTPHeaders({ "user-agent": agent});
+			if(failCounter<MAX_FAIL_LIMIT){
+				j--;
+			}
+  	  	}
+  	}
+	stream.end();
+	browser.close(); 
+  	// Return a value
+  	return result;
+};
+
+async function crawlEmployeeData(page, url){
+	console.log('going to next page...');
+	await page.goto(url,{ timeout: 0 , waitUntil : 'load'});
+	console.log('getting employee data...');
+	const res = await page.evaluate(() => {
+  	  	let name = document.querySelector(".profile-intro-username");
+  	  	let specialization = document.querySelector(".profile-user-byline");
+  	  	let skillSet = document.querySelectorAll('#profile-skills-wrapper > #skills > .VerificationsList-item > .VerificationsList-label > a');
+  	  	let projects = document.querySelectorAll('.profile-components-main > #profile-reviews > .user-reviews > .user-review > .user-review-title');
+  	  	let city = document.querySelector(".PageProfile-info-locality");
+  	  	let attrib17 = document.querySelector(".Earnings .Earnings-label");
+  	  	let attrib3 = document.querySelector(".profile-membership-length");
+
+  	  	let data = [];
+
+  	  	if(name){
+  	  		data.push(name.textContent);
+  	  	}else{
+  	  		data.push('--');
+  	  	}
+
+  	  	if(specialization){
+  	  		data.push(specialization.textContent);
+  	  	}else{
+  	  		data.push('--');
+  	  	}
+  	  	
+  	  	let strData = "";
+  	  	for(let skill of skillSet){
+  	  		if(skill){
+  	  			strData = strData + skill.innerText + "//";
+  			}else{
+  				strData = strData+"--";
+  			}
+    	} 
+    	data.push(strData);
+
+    	strData = "";
+		for(let project of projects){
+  	  		if(project){
+  	  			strData = strData + project.innerText + "//";
+  			}else{
+  				strData = strData+"--";
+  			}
+    	} 
+    	data.push(strData);    	
+
+    	if(city){
+  	  		data.push(city.textContent);
+  	  	}else{
+  	  		data.push('--');
+  	  	}
+
+    	if(attrib17){
+    		data.push(attrib17.textContent);
+    	}else{
+    		data.push("0.0");
+    	}		    	
+		
+    	if(attrib3){
+    		data.push(attrib3.textContent);
+    	}else{
+    		data.push("--");
+    	}
+
+		return data;
+  	});
+  	return res;
+}
+
+scrape(startLink);
