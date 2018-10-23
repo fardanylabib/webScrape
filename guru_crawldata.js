@@ -8,16 +8,12 @@ const MAX_FAIL_LIMIT = 5;
 
 let startLink = process.argv[2] - 1;
 
+var browser;
+var page;
+var agent;
 const scrape = async (start) => {
 	// Actual Scraping goes Here...
-	var browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
-	var page = await browser.newPage();
-	var agent = userAgent.getRandom(function (ua) {
-		return ua.osName === 'Linux';
-	});
-	console.log(agent);
-	page.setExtraHTTPHeaders({ 'user-agent': agent});
-		
+	await resetPage(false);
 	const linksDir 	= ".\\Result\\guru_links\\";
 	
 	//output path setup
@@ -47,7 +43,17 @@ const scrape = async (start) => {
 	let failCounter = 0;
 	for (let j = startLink;j<links.length;j++) {
 		var employeeData=[];
-		employeeData = await crawlEmployeeData(page,links[j]);
+		let refreshPage = true;
+		while(refreshPage){
+			try{
+				employeeData = await crawlEmployeeData(page,links[j]);
+				refreshPage = false;
+			}catch(err){
+				await resetPage(true);
+				page.waitFor(TIME_DELAY_2);
+			}
+		}
+
 		if(employeeData[0] !=="--"){
 			console.log("writing links into file...");
 			for(let data of employeeData){
@@ -61,15 +67,7 @@ const scrape = async (start) => {
 			failCounter = 0;
 		}else{
 			failCounter++;
-			console.log("reset browser...");
-			browser.close();
-			browser = await puppeteer.launch({ headless: false, executablePath : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" });
-			page = await browser.newPage();
-			agent = userAgent.getRandom(function (ua) {
-				return ua.osName === 'Linux';
-			});
-			console.log(agent);
-			page.setExtraHTTPHeaders({ "user-agent": agent});
+			await resetPage(true);
 			if(failCounter<MAX_FAIL_LIMIT){
 				j--;
 			}
@@ -83,9 +81,19 @@ const scrape = async (start) => {
 
 async function crawlEmployeeData(page, url){
 	console.log('going to next page...');
-	await page.goto(url,{ timeout: 0 , waitUntil : 'load'});
+	
+	while(true){
+		try{
+			await page.goto(url ,{ timeout: 180000, waitUntil : 'domcontentloaded'});
+			await page.waitFor(TIME_DELAY_1/2);
+			break; 
+		}catch(err){
+			console.log("not success, try again to load page");
+			await resetPage(true);
+		}
+	}
 	console.log('getting employee data...');
-	const res = await page.evaluate(() => {
+	let res = await page.evaluate(() => {
 		let name = document.querySelector(".clearfix h4 span");
 		let specialization = document.querySelector(".innerModule .aboutUs .tagline");
 		let skillSet = document.querySelectorAll(".profile-skills.profile-skills-title li");
@@ -144,7 +152,45 @@ async function crawlEmployeeData(page, url){
 		}		    	
 		return data;
 	});
+
+	console.log('going to review page...');
+
+	while(true){
+		try{
+			await page.goto(url + "/reviews",{ timeout: 180000, waitUntil : 'domcontentloaded'});
+			await page.waitFor(TIME_DELAY_1/2);
+			break; 
+		}catch(err){
+			console.log("not success, try again to load review page");
+			await resetPage(true);
+		}
+	}
+
+	
+	const firstDate = await page.evaluate(() => {
+		let date = document.querySelector(".clearfix:nth-child(1) > #reviews > .byline > .\_32 > div");
+		if(date){
+			return date.innerText;
+		}else{
+			return "--";
+		}
+	});
+	res.push(firstDate);
 	return res;
+}
+
+
+async function resetPage(closeBrowser){
+	if(closeBrowser){
+		browser.close();
+	}
+	browser = await puppeteer.launch({ headless: false, executablePath : 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' });
+	page = await browser.newPage();
+	agent = userAgent.getRandom(function (ua) {
+		return ua.osName === 'Linux';
+	});
+	console.log(agent);
+	page.setExtraHTTPHeaders({ 'user-agent': agent});
 }
 
 scrape(startLink);

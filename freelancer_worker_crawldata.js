@@ -26,9 +26,9 @@ const scrape = async (start) => {
 	let fileName = "";
 	while(fileExist != 0){
 		if(index === 0){
-			fileName = linksDir+"RawData.csv";
+			fileName = linksDir+"RawDataWorker.csv";
 		}else{
-			fileName = linksDir+"RawData("+ index +").csv";
+			fileName = linksDir+"RawDataWorker("+ index +").csv";
 		}
 		if(fs.existsSync(fileName)){
 			index++;
@@ -37,20 +37,22 @@ const scrape = async (start) => {
 		}
 	}
 	console.log("File Name = "+fileName);
-  	const outStream = fs.createWriteStream(fileName);
+  const outStream = fs.createWriteStream(fileName);
 
 	//input path setup
-	const databaseFile 	= linksDir + "database.txt";
+	const databaseFile 	= linksDir + "database_worker.txt";
   	var links = fs.readFileSync(databaseFile);
   	links = links.toString();
   	links = links.split("\n");
   	let failCounter = 0;
   	for (let j = startLink;j<links.length;j++) {
   		var employeeData=[];
-  		employeeData = await crawlEmployeeData(page,links[j]);
+      let urlString = "https://www.freelancer.com/u/"+links[j];
+  		employeeData = await crawlEmployeeData(page,urlString);
   	  	if(employeeData[0] !=="--"){
   	  		console.log("writing links into file...");
   	  		for(let data of employeeData){
+  	  			data = data.replace(/,/g, ".");
   	  			data = data.replace(/,/g, ".");
   	  			data = data.replace((/  |\r\n|\n|\r/gm),"");
 				outStream.write(data + ",");
