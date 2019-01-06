@@ -8,7 +8,7 @@ const usingChromium = { headless: false};
 
 const TIME_DELAY_1 = 1000;
 const TIME_DELAY_2 = 2000;
-
+let clickCounter=0;
 const scrape = async () => {
 	let finishFlag = 0
 	var browser = await puppeteer.launch(usingChrome);
@@ -36,7 +36,7 @@ const scrape = async () => {
 	var projects = [];
 	let showPage = 1;
 	let nextButtonChildId = 10;
-  	while(showPage<=1160){
+  	while(showPage<=1200){
   		console.log("\n\n");  
   		console.log("======================= START ============================");
 	  	console.log("getting project details from page " +showPage);    
@@ -100,7 +100,7 @@ async function getAllProjectDetails(page,nextBtnId){
 			let name = [];
 			let elements = document.querySelectorAll('.form-body > .row > .col-md-10 > h2 > a');
 			for(let i = 0;i<elements.length;i++){
-				name.push(elements[i].innerText.replace((/  |\r\n|\n|\r/gm),""));
+				name.push(elements[i].innerText.replace((/  |\r\n|\n|\r/gm),"").replace(/,/g, "."));
 			}
 			return name;
 		});
@@ -114,12 +114,21 @@ async function getAllProjectDetails(page,nextBtnId){
 				let theDetails = [];
 				elements = document.querySelectorAll('.row > .col-md-10 > .col-md-12 > .row > .col-md-6:nth-child(2)');				
 				if(elements[0]){
-					for(let element of elements){
-						let details = element.textContent.replace((/  |\r\n|\n|\r/gm),"//").replace(/,/g, ".").split("//");
+					let dateElements = document.querySelectorAll(".row > .col-md-10 > .col-md-12 > .row > .col-md-6:nth-child(1)");
+					for(let i=0;i<elements.length;i++){
+						let details = elements[i].textContent.replace((/  |\r\n|\n|\r/gm),"//").replace(/,/g, ".").split("//");
 						let detailStr = "";
 						detailStr = detailStr + details[3].substring(0,details[3].indexOf("Accepted")) + ",";
 						detailStr = detailStr + details[4].substring(0,details[4].indexOf("Project")) + ",";
-						detailStr = detailStr + details[5].substring(0,details[5].indexOf("Finish"));
+						detailStr = detailStr + details[5].substring(0,details[5].indexOf("Finish"))+ ",";
+						if(dateElements[0]){
+							//date
+							let date = dateElements[i].innerText.toLowerCase().replace(/ /g,'');
+							let index = date.indexOf("startdate:")+10;
+							detailStr = detailStr + date.substring(index,index+10);
+						}else{
+							detailStr = detailStr + "--";
+						}
 						theDetails.push(detailStr);
 					}	
 				}
@@ -137,6 +146,7 @@ async function getAllProjectDetails(page,nextBtnId){
 		console.log("Data parsing error : "+ err1);
 	}
 
+	console.log("click to next page")
 	try{
 		//click next page
 		let selector = '.row:nth-child(1) > .col-md-12 > .pull-right > .pagination > li:nth-child('+ nextBtnId +') > .ajax-url';
@@ -158,6 +168,7 @@ async function getAllProjectDetails(page,nextBtnId){
 		  		await page.waitFor(TIME_DELAY_1);
 		  		console.log("Wait until next page page reloaded")
 		  	}else{
+		  		await page.waitFor(TIME_DELAY_1);
 		  		break;
 		  	}
 	  	}

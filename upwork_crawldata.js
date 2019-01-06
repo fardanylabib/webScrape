@@ -190,6 +190,8 @@ const scrape = async (startLink) => {
   	  	let money = document.querySelector('.m-lg-top > .list-inline > .ng-scope > .m-xs-bottom > .ng-binding');
   	  	let skills = document.querySelectorAll('section > div > .ng-isolate-scope > .m-sm-top > .ng-binding');
 
+  	  	let hoursWork = document.querySelector("#optimizely-header-container-default > .m-lg-top > .list-inline > .ng-scope:nth-child(4) > .m-xs-bottom");
+  	  	let jobsDone = document.querySelector("#optimizely-header-container-default > .m-lg-top > .list-inline > .ng-scope:nth-child(3) > .m-xs-bottom");
   	  	let data = [];
 
   	  	if(name){
@@ -231,7 +233,19 @@ const scrape = async (startLink) => {
   	  		data.push(strSkill);
   	  	}else{
   	  		data.push('--');
-  	  	}	
+  	  	}
+
+  	  	if(jobsDone){
+  	  		data.push(jobsDone.textContent);
+  	  	}else{
+  	  		data.push('--');
+  	  	}
+
+  	  	if(hoursWork){
+  	  		data.push(hoursWork.textContent);
+  	  	}else{
+  	  		data.push('--');
+  	  	}
   	  	return data;
   	});
   	

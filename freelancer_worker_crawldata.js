@@ -93,9 +93,8 @@ async function crawlEmployeeData(page, url){
   	  	let city = document.querySelector(".PageProfile-info-locality");
   	  	let attrib17 = document.querySelector(".Earnings .Earnings-label");
   	  	let attrib3 = document.querySelector(".profile-membership-length");
-
         let lastProjectDate = document.querySelector("#profile-reviews > .user-reviews > .user-review:nth-child(1) > .user-review-details > span:nth-child(2)");
-
+        let nbOfReview = document.querySelector("#sticky-start > .profile-info-card > .profile-statistics > .Rating > .Rating-review");
   	  	let data = [];
 
   	  	if(name){
@@ -150,6 +149,12 @@ async function crawlEmployeeData(page, url){
 
       if(lastProjectDate){
         data.push(lastProjectDate.textContent);
+      }else{
+        data.push("--");
+      }
+
+      if(nbOfReview){
+        data.push(nbOfReview.innerText);
       }else{
         data.push("--");
       }
